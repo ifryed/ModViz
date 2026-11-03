@@ -50,6 +50,39 @@ torch-flow-viz examples/hybrid_cnn_gnn.py --model HybridCNNGNN \
   -o examples/hybrid_cnn_gnn_visualization.html
 ```
 
+## Standalone Python desktop app
+
+The `python` branch includes a native desktop application with an embedded
+diagram editor. Install the desktop extra:
+
+```bash
+pip install -e '.[desktop]'
+```
+
+Start the application and choose **Open model…**:
+
+```bash
+torch-flow-viz-desktop
+```
+
+Or open a model file immediately:
+
+```bash
+torch-flow-viz-desktop examples/simple_cnn.py
+```
+
+The setup window accepts the model class/factory name, JSON constructor
+arguments, one example input shape per line, matching dtypes, and the tracing
+device. The resulting editor runs inside the Python application and supports
+the same dragging, selection, grouping, minimizing, loss visibility, Compact,
+Undo, PNG/SVG/PDF/draw.io export, and HTML saving as the browser version.
+
+The desktop app recognizes the Hierarchical Vessel GNN project when opening
+`vessel_gnn/model.py`. It automatically reads the neighboring `config.yaml`,
+uses a representative PyTorch Geometric graph, preserves the hard coarsening
+stages, and includes only the losses defined by that project. No tensor-input
+setup is required for this adapter.
+
 ## Your own model
 
 Expose `model = MyNetwork()` in a `.py` file, or point at a class:

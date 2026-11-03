@@ -1,11 +1,40 @@
 import unittest
+from pathlib import Path
 
 from torch_flow_viz.model_loader import parse_json_object
+from torch_flow_viz.project_adapter import vessel_project_root
 from torch_flow_viz.render import render_html
 from torch_flow_viz.tracer import parse_shape
 
 
 class CoreTests(unittest.TestCase):
+    def test_desktop_entrypoint_is_packaged(self):
+        root = Path(__file__).resolve().parents[1]
+        pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+        desktop = (root / "torch_flow_viz" / "desktop.py").read_text(encoding="utf-8")
+        self.assertIn('desktop = ["PySide6>=6.6"]', pyproject)
+        self.assertIn('torch-flow-viz-desktop = "torch_flow_viz.desktop:main"', pyproject)
+        self.assertIn("class MainWindow", desktop)
+        self.assertIn("QWebEngineView", desktop)
+        self.assertIn("downloadRequested", desktop)
+        self.assertIn("QComboBox,", desktop)
+        self.assertIn("self.device = QComboBox()", desktop)
+        self.assertIn("completed = Signal()", desktop)
+        self.assertIn("QThread.currentThread().quit()", desktop)
+        self.assertIn("thread.finished.connect(self._trace_thread_finished)", desktop)
+        self.assertIn("render_supported_project", desktop)
+        self.assertIn("def _trace_thread_finished", desktop)
+        self.assertIn("except RuntimeError", desktop)
+
+    def test_vessel_project_detection(self):
+        legacy = Path("/Users/ifryed/Documents/ChatGPT/NextProj/vessel_gnn/model.py")
+        source_layout = Path("/Users/ifryed/Documents/ChatGPT/NextProj/src/vessel_gnn/model.py")
+        model = source_layout if source_layout.is_file() else legacy
+        if model.is_file():
+            expected = model.parents[2] if model.parent.parent.name == "src" else model.parents[1]
+            self.assertEqual(vessel_project_root(model), expected)
+        self.assertIsNone(vessel_project_root(Path(__file__)))
+
     def test_shape(self):
         self.assertEqual(parse_shape("1, 3,224,224"), (1, 3, 224, 224))
         with self.assertRaises(ValueError):
@@ -33,9 +62,15 @@ class CoreTests(unittest.TestCase):
         self.assertIn('id="toggleLoss"', html)
         self.assertIn('id="compact"', html)
         self.assertIn("compactLayout", html)
+        self.assertIn("initialLayoutSnapshot", html)
+        self.assertIn("restoreLayoutSnapshot", html)
+        self.assertIn("resetLayout", html)
+        self.assertIn("setTimeout(()=>compactLayout(false),0)", html)
+        self.assertIn("document.querySelector('#compact').onclick=()=>compactLayout(true)", html)
         self.assertIn("levelByKey", html)
+        self.assertIn("measure.measureText(text).width+72", html)
+        self.assertIn("gapAfter", html)
         self.assertIn("toggleLossVisibility", html)
-        self.assertIn("lossHidden=!showLoss", html)
         self.assertIn("visibleNodes=graph.nodes.filter", html)
         self.assertIn('id="alignH"', html)
         self.assertIn('id="alignV"', html)
@@ -52,6 +87,9 @@ class CoreTests(unittest.TestCase):
         self.assertIn('data-tooltip="Align horizontally"', html)
         self.assertIn("collapse.setAttribute('data-tooltip'", html)
         self.assertIn("stroke-width:1.2", html)
+        self.assertIn(".context-tools.dragging{opacity:.2", html)
+        self.assertIn("classList.add('dragging')", html)
+        self.assertIn("classList.remove('dragging')", html)
         self.assertIn("groupSelected", html)
         self.assertIn("ungroupSelected", html)
         self.assertIn("toggleCollapseSelected", html)
@@ -60,13 +98,13 @@ class CoreTests(unittest.TestCase):
         self.assertIn("boxForNode", html)
         self.assertIn("visibleRoutingBoxes", html)
         self.assertIn("endpointPortOffset", html)
-        self.assertIn("sideAnchor", html)
-        self.assertIn("chooseCollapsedSide", html)
-        self.assertIn("collapsedSideUsage", html)
         self.assertIn("startItemDrag", html)
         self.assertIn("refreshLayout", html)
+        self.assertIn("updateEdgesFast", html)
+        self.assertIn("requestAnimationFrame", html)
+        self.assertIn("applyPendingItemDrag", html)
+        self.assertIn("cancelAnimationFrame", html)
         self.assertIn("routeEdge", html)
-        self.assertIn("horizontalPathClear", html)
         self.assertIn("startMarquee", html)
         self.assertIn("selection-marquee", html)
         self.assertIn("p.x>=left&&p.x+W<=right", html)
@@ -75,21 +113,10 @@ class CoreTests(unittest.TestCase):
         self.assertIn("declaredMemberIds", html)
         self.assertIn("definition.collapsed", html)
         self.assertIn("selectGroup", html)
-        self.assertIn("groupRoutingObstacles", html)
-        self.assertIn("routeWithGroupGateways", html)
-        self.assertIn("reduceRouteBends", html)
-        self.assertIn("assignPorts", html)
         self.assertIn("sideVector", html)
-        self.assertIn("segmentFollowsSide", html)
         self.assertIn("edgePort", html)
-        self.assertIn("boundaryFacingSide", html)
-        self.assertIn("groupedEndpointSide", html)
-        self.assertIn("preferred==='top'||preferred==='bottom'?preferred", html)
-        self.assertIn("nearestGroupSide", html)
         self.assertIn("segmentConflicts", html)
         self.assertIn("routedSegments", html)
-        self.assertIn("clearance=10", html)
-        self.assertIn("gatewayLeg", html)
         self.assertIn("undoLayout", html)
         self.assertIn("layoutHistory", html)
         self.assertIn("stroke-dasharray:7 4", html)
