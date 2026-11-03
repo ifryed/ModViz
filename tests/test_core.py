@@ -1,0 +1,92 @@
+import unittest
+
+from torch_flow_viz.model_loader import parse_json_object
+from torch_flow_viz.render import render_html
+from torch_flow_viz.tracer import parse_shape
+
+
+class CoreTests(unittest.TestCase):
+    def test_shape(self):
+        self.assertEqual(parse_shape("1, 3,224,224"), (1, 3, 224, 224))
+        with self.assertRaises(ValueError):
+            parse_shape("1,0")
+
+    def test_json_object(self):
+        self.assertEqual(parse_json_object('{"classes": 4}', "--x"), {"classes": 4})
+        with self.assertRaises(ValueError):
+            parse_json_object("[]", "--x")
+
+    def test_html_payload_is_script_safe(self):
+        html = render_html({"name": "</script>", "nodes": [], "edges": [], "total_parameters": 0})
+        self.assertNotIn('const graph={"name": "</script>', html)
+        self.assertIn("PyTorch network flow", html)
+        self.assertIn('id="png"', html)
+        self.assertIn('id="pdf"', html)
+        self.assertIn('id="drawio"', html)
+        self.assertIn("makeDrawio", html)
+        self.assertIn('id="reset"', html)
+        self.assertIn('id="help"', html)
+        self.assertIn('id="helpOverlay"', html)
+        self.assertIn("How to use this diagram", html)
+        self.assertIn("openHelp", html)
+        self.assertIn('id="undo"', html)
+        self.assertIn('id="alignH"', html)
+        self.assertIn('id="alignV"', html)
+        self.assertIn('id="group"', html)
+        self.assertIn('id="ungroup"', html)
+        self.assertIn('id="collapse"', html)
+        self.assertIn('id="rename"', html)
+        self.assertIn('id="contextTools"', html)
+        self.assertIn("positionContextToolbar", html)
+        self.assertIn("tools.hidden=!(multi||groups.length)", html)
+        self.assertIn("minimizeIcon", html)
+        self.assertIn("expandIcon", html)
+        self.assertIn('aria-label="Group selected objects"', html)
+        self.assertIn('data-tooltip="Align horizontally"', html)
+        self.assertIn("collapse.setAttribute('data-tooltip'", html)
+        self.assertIn("stroke-width:1.2", html)
+        self.assertIn("groupSelected", html)
+        self.assertIn("ungroupSelected", html)
+        self.assertIn("toggleCollapseSelected", html)
+        self.assertIn("renameSelectedGroup", html)
+        self.assertIn("Group name cannot be empty", html)
+        self.assertIn("boxForNode", html)
+        self.assertIn("visibleRoutingBoxes", html)
+        self.assertIn("endpointPortOffset", html)
+        self.assertIn("sideAnchor", html)
+        self.assertIn("chooseCollapsedSide", html)
+        self.assertIn("collapsedSideUsage", html)
+        self.assertIn("startItemDrag", html)
+        self.assertIn("refreshLayout", html)
+        self.assertIn("routeEdge", html)
+        self.assertIn("horizontalPathClear", html)
+        self.assertIn("startMarquee", html)
+        self.assertIn("selection-marquee", html)
+        self.assertIn("p.x>=left&&p.x+W<=right", html)
+        self.assertIn("selectedGroups", html)
+        self.assertIn("selectGroup", html)
+        self.assertIn("groupRoutingObstacles", html)
+        self.assertIn("routeWithGroupGateways", html)
+        self.assertIn("reduceRouteBends", html)
+        self.assertIn("assignPorts", html)
+        self.assertIn("sideVector", html)
+        self.assertIn("segmentFollowsSide", html)
+        self.assertIn("edgePort", html)
+        self.assertIn("boundaryFacingSide", html)
+        self.assertIn("groupedEndpointSide", html)
+        self.assertIn("preferred==='top'||preferred==='bottom'?preferred", html)
+        self.assertIn("nearestGroupSide", html)
+        self.assertIn("segmentConflicts", html)
+        self.assertIn("routedSegments", html)
+        self.assertIn("clearance=10", html)
+        self.assertIn("gatewayLeg", html)
+        self.assertIn("undoLayout", html)
+        self.assertIn("layoutHistory", html)
+        self.assertIn("stroke-dasharray:7 4", html)
+        self.assertIn("graphX=(mx-tx)/oldScale", html)
+        self.assertIn("Math.abs(e.deltaX)>Math.abs(e.deltaY)", html)
+
+
+if __name__ == "__main__":
+    unittest.main()
+

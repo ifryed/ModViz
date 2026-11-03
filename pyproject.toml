@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "torch-flow-viz"
+version = "0.1.0"
+description = "Trace a PyTorch model and create a self-contained interactive network-flow visualization."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["torch>=2.0"]
+
+[project.scripts]
+torch-flow-viz = "torch_flow_viz.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["torch_flow_viz*"]
+
