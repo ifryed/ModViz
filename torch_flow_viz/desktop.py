@@ -41,6 +41,7 @@ except ImportError as exc:  # pragma: no cover - exercised only without desktop 
     ) from exc
 
 from .model_loader import load_model, parse_json_object
+from .project_adapter import render_supported_project, vessel_project_root
 from .render import render_html
 from .tracer import make_inputs, parse_shape, trace_model
 
@@ -153,6 +154,11 @@ class TraceWorker(QObject):
     @Slot()
     def run(self) -> None:
         try:
+            adapted = render_supported_project(self.request.path)
+            if adapted is not None:
+                html, model_name = adapted
+                self.finished.emit(html, model_name)
+                return
             model = load_model(self.request.path, self.request.symbol, self.request.init_args)
             model.to(self.request.device)
             inputs = make_inputs(self.request.shapes, self.request.dtypes, self.request.device)
@@ -242,6 +248,9 @@ class MainWindow(QMainWindow):
             return
         path = Path(filename).resolve()
         self.settings.setValue("files/last_directory", str(path.parent))
+        if vessel_project_root(path) is not None:
+            self._start_trace(TraceRequest(path, None, {}, [], [], "cpu"))
+            return
         dialog = ModelSetupDialog(path, self.settings, self)
         if dialog.exec() == QDialog.Accepted and dialog.request:
             self._start_trace(dialog.request)
@@ -252,7 +261,11 @@ class MainWindow(QMainWindow):
             self._start_trace(self.current_request)
 
     def open_path(self, path: Path) -> None:
-        dialog = ModelSetupDialog(path.resolve(), self.settings, self)
+        path = path.resolve()
+        if vessel_project_root(path) is not None:
+            self._start_trace(TraceRequest(path, None, {}, [], [], "cpu"))
+            return
+        dialog = ModelSetupDialog(path, self.settings, self)
         if dialog.exec() == QDialog.Accepted and dialog.request:
             self._start_trace(dialog.request)
 

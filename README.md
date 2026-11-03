@@ -77,6 +77,12 @@ device. The resulting editor runs inside the Python application and supports
 the same dragging, selection, grouping, minimizing, loss visibility, Compact,
 Undo, PNG/SVG/PDF/draw.io export, and HTML saving as the browser version.
 
+The desktop app recognizes the Hierarchical Vessel GNN project when opening
+`vessel_gnn/model.py`. It automatically reads the neighboring `config.yaml`,
+uses a representative PyTorch Geometric graph, preserves the hard coarsening
+stages, and includes only the losses defined by that project. No tensor-input
+setup is required for this adapter.
+
 ## Your own model
 
 Expose `model = MyNetwork()` in a `.py` file, or point at a class:

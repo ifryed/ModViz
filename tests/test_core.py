@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 
 from torch_flow_viz.model_loader import parse_json_object
+from torch_flow_viz.project_adapter import vessel_project_root
 from torch_flow_viz.render import render_html
 from torch_flow_viz.tracer import parse_shape
 
@@ -21,8 +22,15 @@ class CoreTests(unittest.TestCase):
         self.assertIn("completed = Signal()", desktop)
         self.assertIn("QThread.currentThread().quit()", desktop)
         self.assertIn("thread.finished.connect(self._trace_thread_finished)", desktop)
+        self.assertIn("render_supported_project", desktop)
         self.assertIn("def _trace_thread_finished", desktop)
         self.assertIn("except RuntimeError", desktop)
+
+    def test_vessel_project_detection(self):
+        model = Path("/Users/ifryed/Documents/ChatGPT/NextProj/vessel_gnn/model.py")
+        if model.is_file():
+            self.assertEqual(vessel_project_root(model), model.parents[1])
+        self.assertIsNone(vessel_project_root(Path(__file__)))
 
     def test_shape(self):
         self.assertEqual(parse_shape("1, 3,224,224"), (1, 3, 224, 224))
