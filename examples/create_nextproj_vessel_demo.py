@@ -161,12 +161,22 @@ def main() -> None:
     links.extend([("unpool", "pixel_loss"), ("targets", "pixel_loss"), ("edge_loss", "total_loss"), ("node_loss", "total_loss"), ("pixel_loss", "total_loss"), ("unpool", "output"), ("total_loss", "output")])
 
     by_id = {item["id"]: item for item in nodes}
+    repeated_stage_groups = [
+        {
+            "name": f"Coarsening Stage {stage_index}",
+            "members": [item["id"] for item in nodes if item["id"].startswith(f"stage{stage_index}_")],
+            "style": ["#fbf4f8", "#b984a1"],
+            "collapsed": True,
+        }
+        for stage_index in range(1, int(config["model"]["num_stages"]) + 1)
+    ]
     graph = {
         "name": "HierarchicalVesselGNN",
         "total_parameters": sum(parameter.numel() for parameter in model.parameters()),
         "trainable_parameters": sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad),
         "nodes": nodes,
         "edges": [{"source": source, "target": target, "label": by_id[source]["shape"]} for source, target in links],
+        "groups": repeated_stage_groups,
     }
     destination = args.output.expanduser().resolve()
     destination.write_text(render_html(graph), encoding="utf-8")
