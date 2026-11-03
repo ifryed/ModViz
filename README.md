@@ -12,7 +12,9 @@ Package name: `torch-flow-viz`. Open any generated HTML and click **Help** for t
 |---|---|
 | **Trace** | `torch.fx` data-flow (not just nested modules) |
 | **Arrange** | Drag layers / stages · Shift-click or marquee select · Align · Group / Minimize |
+| **Compact** | Repack visible nodes and minimized groups to remove unused rows and columns |
 | **Inspect** | Click a layer for shape, dtype, params, and module details |
+| **Loss view** | Toggle loss nodes, loss-only connections, and their stage panel on/off |
 | **Export** | PNG · SVG · PDF · draw.io (full figure, not just the viewport) |
 | **Undo** | Layout history with Ctrl/Cmd+Z |
 
@@ -65,4 +67,8 @@ from torch_flow_viz import visualize
 visualize(model, [torch.zeros(1, 3, 224, 224)], "network.html")
 ```
 
-Losses appear only if they are part of `forward`. Loading a model file **executes** its Python — use trusted local sources. Models with heavy data-dependent control flow may need an FX leaf wrap.
+Losses appear only if they are part of `forward`. When losses are present, use
+**Losses: On/Off** in the toolbar to hide or restore their cells, connections,
+and stage panel. All export formats follow the current loss visibility state.
+Loading a model file **executes** its Python — use trusted local sources. Models
+with heavy data-dependent control flow may need an FX leaf wrap.
