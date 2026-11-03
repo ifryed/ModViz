@@ -144,6 +144,7 @@ class ModelSetupDialog(QDialog):
 class TraceWorker(QObject):
     finished = Signal(str, str)
     failed = Signal(str)
+    completed = Signal()
 
     def __init__(self, request: TraceRequest) -> None:
         super().__init__()
@@ -159,6 +160,12 @@ class TraceWorker(QObject):
             self.finished.emit(render_html(graph), graph["name"])
         except Exception:
             self.failed.emit(traceback.format_exc())
+        finally:
+            self.completed.emit()
+            # Stop the event loop from inside the worker thread. PySide 6.12
+            # does not reliably adapt result signals with arguments to the
+            # zero-argument QThread.quit slot across threads.
+            QThread.currentThread().quit()
 
 
 class MainWindow(QMainWindow):
@@ -250,9 +257,16 @@ class MainWindow(QMainWindow):
             self._start_trace(dialog.request)
 
     def _start_trace(self, request: TraceRequest) -> None:
-        if self._thread and self._thread.isRunning():
-            QMessageBox.information(self, "Trace in progress", "Wait for the current model trace to finish.")
-            return
+        if self._thread is not None:
+            try:
+                if self._thread.isRunning():
+                    QMessageBox.information(self, "Trace in progress", "Wait for the current model trace to finish.")
+                    return
+            except RuntimeError:
+                # Qt may already have deleted the C++ QThread while the Python
+                # wrapper is still referenced. Treat that wrapper as finished.
+                self._thread = None
+                self._worker = None
         self.current_request = request
         self.reload_action.setEnabled(False)
         self.save_action.setEnabled(False)
@@ -264,13 +278,16 @@ class MainWindow(QMainWindow):
         thread.started.connect(worker.run)
         worker.finished.connect(self._trace_finished)
         worker.failed.connect(self._trace_failed)
-        worker.finished.connect(thread.quit)
-        worker.failed.connect(thread.quit)
-        worker.finished.connect(worker.deleteLater)
-        worker.failed.connect(worker.deleteLater)
+        worker.completed.connect(worker.deleteLater)
+        thread.finished.connect(self._trace_thread_finished)
         thread.finished.connect(thread.deleteLater)
         self._thread, self._worker = thread, worker
         thread.start()
+
+    @Slot()
+    def _trace_thread_finished(self) -> None:
+        self._thread = None
+        self._worker = None
 
     @Slot(str, str)
     def _trace_finished(self, html: str, model_name: str) -> None:

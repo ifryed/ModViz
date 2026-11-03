@@ -18,6 +18,11 @@ class CoreTests(unittest.TestCase):
         self.assertIn("downloadRequested", desktop)
         self.assertIn("QComboBox,", desktop)
         self.assertIn("self.device = QComboBox()", desktop)
+        self.assertIn("completed = Signal()", desktop)
+        self.assertIn("QThread.currentThread().quit()", desktop)
+        self.assertIn("thread.finished.connect(self._trace_thread_finished)", desktop)
+        self.assertIn("def _trace_thread_finished", desktop)
+        self.assertIn("except RuntimeError", desktop)
 
     def test_shape(self):
         self.assertEqual(parse_shape("1, 3,224,224"), (1, 3, 224, 224))
