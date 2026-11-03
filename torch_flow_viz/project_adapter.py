@@ -14,13 +14,13 @@ def vessel_project_root(model_path: str | Path) -> Path | None:
     source = Path(model_path).expanduser().resolve()
     if source.name != "model.py" or source.parent.name != "vessel_gnn":
         return None
-    root = source.parent.parent
-    required = (
-        root / "config.yaml",
-        root / "vessel_gnn" / "graph_ops.py",
-        root / "vessel_gnn" / "losses.py",
-    )
-    return root if all(path.is_file() for path in required) else None
+    candidates = (source.parent.parent, source.parent.parent.parent)
+    for root in candidates:
+        package = root / "src" / "vessel_gnn" if (root / "src" / "vessel_gnn").is_dir() else root / "vessel_gnn"
+        config = root / "configs" / "config.yaml" if (root / "configs" / "config.yaml").is_file() else root / "config.yaml"
+        if config.is_file() and (package / "graph_ops.py").is_file() and (package / "losses.py").is_file():
+            return root
+    return None
 
 
 def render_supported_project(model_path: str | Path) -> tuple[str, str] | None:
@@ -40,7 +40,7 @@ def render_supported_project(model_path: str | Path) -> tuple[str, str] | None:
     with tempfile.TemporaryDirectory(prefix="modviz-vessel-") as directory:
         output = Path(directory) / "vessel_gnn.html"
         environment = os.environ.copy()
-        python_path = [str(repository), str(project)]
+        python_path = [str(repository), str(project), str(project / "src")]
         if environment.get("PYTHONPATH"):
             python_path.append(environment["PYTHONPATH"])
         environment["PYTHONPATH"] = os.pathsep.join(python_path)

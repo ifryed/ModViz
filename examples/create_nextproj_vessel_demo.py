@@ -39,13 +39,17 @@ def main() -> None:
     args = parser.parse_args()
     project = args.project.expanduser().resolve()
     sys.path.insert(0, str(project))
+    if (project / "src").is_dir():
+        sys.path.insert(0, str(project / "src"))
 
     import torch
     from torch_geometric.data import Data
     from vessel_gnn.model import HierarchicalVesselGNN
 
-    config = yaml.safe_load((project / "config.yaml").read_text(encoding="utf-8"))
-    loss_source = (project / "vessel_gnn" / "losses.py").read_text(encoding="utf-8")
+    config_path = project / "configs" / "config.yaml" if (project / "configs" / "config.yaml").is_file() else project / "config.yaml"
+    package_path = project / "src" / "vessel_gnn" if (project / "src" / "vessel_gnn").is_dir() else project / "vessel_gnn"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    loss_source = (package_path / "losses.py").read_text(encoding="utf-8")
     required_losses = ("edge_loss", "node_loss", "pixel_loss", "binary_cross_entropy_with_logits")
     if not all(name in loss_source for name in required_losses):
         raise RuntimeError("The expected hierarchical losses were not found in vessel_gnn/losses.py")
