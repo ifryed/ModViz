@@ -16,6 +16,8 @@ class CoreTests(unittest.TestCase):
         self.assertIn("class MainWindow", desktop)
         self.assertIn("QWebEngineView", desktop)
         self.assertIn("downloadRequested", desktop)
+        self.assertIn("QComboBox,", desktop)
+        self.assertIn("self.device = QComboBox()", desktop)
 
     def test_shape(self):
         self.assertEqual(parse_shape("1, 3,224,224"), (1, 3, 224, 224))

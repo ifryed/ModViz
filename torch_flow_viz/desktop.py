@@ -18,6 +18,7 @@ try:
     from PySide6.QtGui import QAction, QKeySequence
     from PySide6.QtWidgets import (
         QApplication,
+        QComboBox,
         QDialog,
         QDialogButtonBox,
         QFileDialog,
