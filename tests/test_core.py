@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from torch_flow_viz.model_loader import parse_json_object
 from torch_flow_viz.render import render_html
@@ -6,6 +7,16 @@ from torch_flow_viz.tracer import parse_shape
 
 
 class CoreTests(unittest.TestCase):
+    def test_desktop_entrypoint_is_packaged(self):
+        root = Path(__file__).resolve().parents[1]
+        pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+        desktop = (root / "torch_flow_viz" / "desktop.py").read_text(encoding="utf-8")
+        self.assertIn('desktop = ["PySide6>=6.6"]', pyproject)
+        self.assertIn('torch-flow-viz-desktop = "torch_flow_viz.desktop:main"', pyproject)
+        self.assertIn("class MainWindow", desktop)
+        self.assertIn("QWebEngineView", desktop)
+        self.assertIn("downloadRequested", desktop)
+
     def test_shape(self):
         self.assertEqual(parse_shape("1, 3,224,224"), (1, 3, 224, 224))
         with self.assertRaises(ValueError):

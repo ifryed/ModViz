@@ -10,8 +10,12 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["torch>=2.0"]
 
+[project.optional-dependencies]
+desktop = ["PySide6>=6.6"]
+
 [project.scripts]
 torch-flow-viz = "torch_flow_viz.cli:main"
+torch-flow-viz-desktop = "torch_flow_viz.desktop:main"
 
 [tool.setuptools.packages.find]
 include = ["torch_flow_viz*"]

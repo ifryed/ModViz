@@ -50,6 +50,33 @@ torch-flow-viz examples/hybrid_cnn_gnn.py --model HybridCNNGNN \
   -o examples/hybrid_cnn_gnn_visualization.html
 ```
 
+## Standalone Python desktop app
+
+The `python` branch includes a native desktop application with an embedded
+diagram editor. Install the desktop extra:
+
+```bash
+pip install -e '.[desktop]'
+```
+
+Start the application and choose **Open model…**:
+
+```bash
+torch-flow-viz-desktop
+```
+
+Or open a model file immediately:
+
+```bash
+torch-flow-viz-desktop examples/simple_cnn.py
+```
+
+The setup window accepts the model class/factory name, JSON constructor
+arguments, one example input shape per line, matching dtypes, and the tracing
+device. The resulting editor runs inside the Python application and supports
+the same dragging, selection, grouping, minimizing, loss visibility, Compact,
+Undo, PNG/SVG/PDF/draw.io export, and HTML saving as the browser version.
+
 ## Your own model
 
 Expose `model = MyNetwork()` in a `.py` file, or point at a class:

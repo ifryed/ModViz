@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import inspect
 import json
@@ -29,17 +30,33 @@ def load_model(path: str | Path, symbol: str | None = None, init_args: dict[str,
     if not source.is_file():
         raise FileNotFoundError(f"Model file does not exist: {source}")
 
-    module_name = f"_torch_flow_model_{source.stem}_{abs(hash(source))}"
-    spec = importlib.util.spec_from_file_location(module_name, source)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Could not import model file: {source}")
-    module = importlib.util.module_from_spec(spec)
-    # Make sibling imports work just as they do when the model file is run directly.
+    package_parts = [source.stem]
+    package_root = source.parent
+    while (package_root / "__init__.py").is_file():
+        package_parts.insert(0, package_root.name)
+        package_root = package_root.parent
+    in_package = len(package_parts) > 1
+    module_name = ".".join(package_parts) if in_package else f"_torch_flow_model_{source.stem}_{abs(hash(source))}"
     original_path = list(sys.path)
-    sys.modules[module_name] = module
     try:
-        sys.path.insert(0, str(source.parent))
-        spec.loader.exec_module(module)
+        # Package-aware names allow model files to keep relative imports such
+        # as ``from .layers import Block``. Single files retain sibling-import
+        # behavior by placing their own directory on sys.path.
+        sys.path.insert(0, str(package_root if in_package else source.parent))
+        if in_package:
+            importlib.invalidate_caches()
+            module = (
+                importlib.reload(sys.modules[module_name])
+                if module_name in sys.modules
+                else importlib.import_module(module_name)
+            )
+        else:
+            spec = importlib.util.spec_from_file_location(module_name, source)
+            if spec is None or spec.loader is None:
+                raise RuntimeError(f"Could not import model file: {source}")
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
     finally:
         sys.path[:] = original_path
     kwargs = init_args or {}
