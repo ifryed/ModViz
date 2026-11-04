@@ -71,6 +71,16 @@ Or open a model file immediately:
 torch-flow-viz-desktop examples/simple_cnn.py
 ```
 
+When no model is open, the welcome screen lists up to eight recent Python models
+or saved ModViz diagrams. Use **Save…** (Ctrl/Cmd+S) to choose an `.html` file.
+The self-contained file includes the current positions, groups, minimized
+stages, loss visibility, and viewport. Open it later from **Open model…**, the
+recent-files list, or directly from the command line:
+
+```bash
+torch-flow-viz-desktop saved_diagram.html
+```
+
 The setup window accepts the model class/factory name, JSON constructor
 arguments, one example input shape per line, matching dtypes, and the tracing
 device. The resulting editor runs inside the Python application and supports

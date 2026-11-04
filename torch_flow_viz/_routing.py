@@ -131,7 +131,8 @@ function routeEdge(e){
 }
 function drawEdge(record,points){
   record.points=points;
-  record.path.setAttribute('d',points.map((p,i)=>`${i?'L':'M'}${p.x} ${p.y}`).join(' '));
+  const d=points.map((p,i)=>`${i?'L':'M'}${p.x} ${p.y}`).join(' ');
+  record.path.setAttribute('d',d);record.hit.setAttribute('d',d);
   if(record.label){
     record.label.setAttribute('transform','');
     const candidates=points.slice(1).map((b,i)=>({a:points[i],b,length:Math.abs(b.x-points[i].x)})).filter(s=>s.a.y===s.b.y).sort((a,b)=>b.length-a.length);
@@ -149,11 +150,11 @@ function updateEdges(){
   });
   for(const record of ordered){
     const visible=edgeVisible(record.edge);
-    record.path.style.display=visible?'':'none';if(record.label)record.label.style.display=visible?'':'none';
+    record.path.style.display=visible?'':'none';record.hit.style.display=visible?'':'none';if(record.label)record.label.style.display=visible?'':'none';
     record.points=null;if(!visible)continue;
     const points=routeEdge(record.edge);
     record.routeFailed=!points;
-    if(!points){record.path.setAttribute('d','');if(record.label)record.label.style.display='none';console.warn('No clear route',record.edge.source,record.edge.target);continue}
+    if(!points){record.path.setAttribute('d','');record.hit.setAttribute('d','');if(record.label)record.label.style.display='none';console.warn('No clear route',record.edge.source,record.edge.target);continue}
     drawEdge(record,points);
     for(let i=1;i<points.length;i++)routedSegments.push([points[i-1],points[i]]);
   }
@@ -171,7 +172,7 @@ function updateEdgesFast(){
       const interior=points.length>2?points.slice(1,-1):[{x:(start.x+goal.x)/2,y:(start.y+goal.y)/2}];
       points.splice(0,points.length,start,sl,{x:interior[0].x,y:sl.y},...interior,{x:interior.at(-1).x,y:tl.y},tl,goal);
     }
-    r.path.setAttribute('d',points.map((p,i)=>`${i?'L':'M'}${p.x} ${p.y}`).join(' '));
+    const d=points.map((p,i)=>`${i?'L':'M'}${p.x} ${p.y}`).join(' ');r.path.setAttribute('d',d);r.hit.setAttribute('d',d);
     if(r.label)r.label.setAttribute('transform',`translate(${(dx+goal.x-oldGoal.x)/2} ${(dy+goal.y-oldGoal.y)/2})`);
   }
 }

@@ -14,8 +14,8 @@ import sys
 import traceback
 
 try:
-    from PySide6.QtCore import QObject, QSettings, QThread, QUrl, Signal, Slot
-    from PySide6.QtGui import QAction, QKeySequence
+    from PySide6.QtCore import QObject, QSettings, QThread, QTimer, QUrl, QUrlQuery, Signal, Slot
+    from PySide6.QtGui import QAction, QIcon, QKeySequence
     from PySide6.QtWidgets import (
         QApplication,
         QComboBox,
@@ -31,7 +31,7 @@ try:
         QToolBar,
         QVBoxLayout,
     )
-    from PySide6.QtWebEngineCore import QWebEngineDownloadRequest
+    from PySide6.QtWebEngineCore import QWebEngineDownloadRequest, QWebEnginePage
     from PySide6.QtWebEngineWidgets import QWebEngineView
 except ImportError as exc:  # pragma: no cover - exercised only without desktop extras
     raise SystemExit(
@@ -41,9 +41,15 @@ except ImportError as exc:  # pragma: no cover - exercised only without desktop 
     ) from exc
 
 from .model_loader import load_model, parse_json_object
+from .desktop_state import embed_layout_html, recent_models, remember_recent_model, welcome_html
 from .project_adapter import render_supported_project, vessel_project_root
 from .render import render_html
 from .tracer import make_inputs, parse_shape, trace_model
+
+
+def application_icon() -> QIcon:
+    """Return the packaged ModViz application icon."""
+    return QIcon(str(Path(__file__).with_name("assets") / "modviz.svg"))
 
 
 @dataclass(frozen=True)
@@ -174,18 +180,42 @@ class TraceWorker(QObject):
             QThread.currentThread().quit()
 
 
+class DesktopPage(QWebEnginePage):
+    """Handle private links from the desktop welcome screen."""
+
+    recentModelRequested = Signal(str)
+    browseRequested = Signal()
+
+    def acceptNavigationRequest(self, url, navigation_type, is_main_frame):
+        if url.host() == "modviz.local":
+            if url.path() == "/open":
+                path = QUrlQuery(url).queryItemValue("path")
+                if path:
+                    self.recentModelRequested.emit(path)
+            elif url.path() == "/browse":
+                self.browseRequested.emit()
+            return False
+        return super().acceptNavigationRequest(url, navigation_type, is_main_frame)
+
+
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.settings = QSettings("ModViz", "ModViz Desktop")
         self.current_html = ""
         self.current_request: TraceRequest | None = None
+        self.current_path: Path | None = None
         self._thread: QThread | None = None
         self._worker: TraceWorker | None = None
         self.setWindowTitle("ModViz — PyTorch Network Visualizer")
+        self.setWindowIcon(application_icon())
         self.resize(1500, 920)
 
         self.web = QWebEngineView(self)
+        page = DesktopPage(self.web)
+        page.recentModelRequested.connect(self._open_recent_model)
+        page.browseRequested.connect(lambda: QTimer.singleShot(0, self.open_model))
+        self.web.setPage(page)
         self.setCentralWidget(self.web)
         self.web.page().profile().downloadRequested.connect(self._save_download)
         self._create_actions()
@@ -208,10 +238,10 @@ class MainWindow(QMainWindow):
         self.reload_action.triggered.connect(self.reload_model)
         toolbar.addAction(self.reload_action)
 
-        self.save_action = QAction("Save HTML…", self)
+        self.save_action = QAction("Save…", self)
         self.save_action.setShortcut(QKeySequence.Save)
         self.save_action.setEnabled(False)
-        self.save_action.triggered.connect(self.save_html)
+        self.save_action.triggered.connect(self.save_diagram)
         toolbar.addAction(self.save_action)
 
         toolbar.addSeparator()
@@ -229,45 +259,87 @@ class MainWindow(QMainWindow):
         file_menu.addAction(quit_action)
 
     def _show_welcome(self) -> None:
-        self.web.setHtml(
-            """<!doctype html><style>
-            body{margin:0;display:grid;place-items:center;height:100vh;background:#f5f6f8;
-            color:#17202a;font-family:system-ui,sans-serif}.card{max-width:620px;padding:42px;
-            background:white;border:1px solid #ccd2da;border-radius:12px;box-shadow:0 8px 30px #23364b18}
-            h1{font-family:Georgia,serif;margin:0 0 12px}p{line-height:1.55;color:#52606f}
-            </style><div class=card><h1>ModViz Desktop</h1><p>Open a trusted PyTorch model
-            Python file. Configure its constructor and example inputs, then inspect and edit the
-            complete interactive network diagram without leaving this application.</p></div>"""
-        )
+        self.web.setHtml(welcome_html(self._recent_models()))
+
+    def _recent_models(self) -> list[Path]:
+        return recent_models(self.settings)
+
+    def _remember_recent(self, path: Path) -> None:
+        remember_recent_model(self.settings, path)
+
+    @Slot(str)
+    def _open_recent_model(self, filename: str) -> None:
+        QTimer.singleShot(0, lambda: self.open_path(Path(filename)))
 
     @Slot()
     def open_model(self) -> None:
         start = str(self.settings.value("files/last_directory", str(Path.home())))
-        filename, _ = QFileDialog.getOpenFileName(self, "Open PyTorch model", start, "Python files (*.py)")
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open model or ModViz diagram",
+            start,
+            "ModViz files (*.py *.html);;Python models (*.py);;ModViz diagrams (*.html)",
+        )
         if not filename:
             return
         path = Path(filename).resolve()
         self.settings.setValue("files/last_directory", str(path.parent))
+        if path.suffix.lower() in {".html", ".htm"}:
+            self._open_html(path)
+            return
         if vessel_project_root(path) is not None:
+            self._remember_recent(path)
             self._start_trace(TraceRequest(path, None, {}, [], [], "cpu"))
             return
         dialog = ModelSetupDialog(path, self.settings, self)
         if dialog.exec() == QDialog.Accepted and dialog.request:
+            self._remember_recent(path)
             self._start_trace(dialog.request)
 
     @Slot()
     def reload_model(self) -> None:
+        if self.current_path and self.current_path.suffix.lower() in {".html", ".htm"}:
+            self._open_html(self.current_path)
+            return
         if self.current_request:
             self._start_trace(self.current_request)
 
     def open_path(self, path: Path) -> None:
         path = path.resolve()
+        if not path.is_file():
+            QMessageBox.warning(self, "Model not found", f"The model file no longer exists:\n{path}")
+            self._show_welcome()
+            return
+        if path.suffix.lower() in {".html", ".htm"}:
+            self._open_html(path)
+            return
         if vessel_project_root(path) is not None:
+            self._remember_recent(path)
             self._start_trace(TraceRequest(path, None, {}, [], [], "cpu"))
             return
         dialog = ModelSetupDialog(path, self.settings, self)
         if dialog.exec() == QDialog.Accepted and dialog.request:
+            self._remember_recent(path)
             self._start_trace(dialog.request)
+
+    def _open_html(self, path: Path) -> None:
+        try:
+            document = path.read_text(encoding="utf-8")
+        except Exception as exc:
+            QMessageBox.critical(self, "Could not open diagram", str(exc))
+            return
+        if "exportLayoutState" not in document or 'id="svg"' not in document:
+            QMessageBox.warning(self, "Not a ModViz diagram", "Choose an HTML file previously saved by ModViz.")
+            return
+        self.current_request = None
+        self.current_path = path
+        self.current_html = document
+        self._remember_recent(path)
+        self.web.setHtml(document, QUrl.fromLocalFile(str(path.parent) + "/"))
+        self.setWindowTitle(f"{path.stem} — ModViz Desktop")
+        self.reload_action.setEnabled(True)
+        self.save_action.setEnabled(True)
+        self.statusBar().showMessage(f"Loaded {path}")
 
     def _start_trace(self, request: TraceRequest) -> None:
         if self._thread is not None:
@@ -281,6 +353,7 @@ class MainWindow(QMainWindow):
                 self._thread = None
                 self._worker = None
         self.current_request = request
+        self.current_path = request.path
         self.reload_action.setEnabled(False)
         self.save_action.setEnabled(False)
         self.statusBar().showMessage(f"Tracing {request.path.name}…")
@@ -324,14 +397,38 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     @Slot()
-    def save_html(self) -> None:
+    def save_diagram(self) -> None:
         if not self.current_html:
             return
-        suggested = (self.current_request.path.stem if self.current_request else "network") + "_flow.html"
-        filename, _ = QFileDialog.getSaveFileName(self, "Save interactive diagram", suggested, "HTML (*.html)")
-        if filename:
-            Path(filename).write_text(self.current_html, encoding="utf-8")
-            self.statusBar().showMessage(f"Saved {filename}", 5000)
+        source = self.current_path or (self.current_request.path if self.current_request else Path("network"))
+        suggested = source.name if source.suffix.lower() == ".html" else source.stem + "_flow.html"
+        filename, _ = QFileDialog.getSaveFileName(self, "Save ModViz diagram", suggested, "ModViz HTML (*.html)")
+        if not filename:
+            return
+        target = Path(filename).expanduser().resolve()
+        if target.suffix.lower() != ".html":
+            target = target.with_suffix(".html")
+        self.web.page().runJavaScript(
+            "exportLayoutState()",
+            lambda layout, path=target: self._save_diagram_result(path, layout),
+        )
+
+    def _save_diagram_result(self, target: Path, layout) -> None:
+        if not isinstance(layout, str) or not layout:
+            QMessageBox.warning(self, "Could not save diagram", "The editor did not return a valid layout.")
+            return
+        try:
+            document = embed_layout_html(self.current_html, layout)
+            target.write_text(document, encoding="utf-8")
+        except Exception as exc:
+            QMessageBox.critical(self, "Could not save diagram", str(exc))
+            return
+        self.current_html = document
+        self.current_path = target
+        self.current_request = None
+        self._remember_recent(target)
+        self.setWindowTitle(f"{target.stem} — ModViz Desktop")
+        self.statusBar().showMessage(f"Saved {target}", 5000)
 
     @Slot(object)
     def _save_download(self, download: QWebEngineDownloadRequest) -> None:
@@ -348,7 +445,7 @@ class MainWindow(QMainWindow):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Open the standalone ModViz desktop application")
-    parser.add_argument("file", nargs="?", type=Path, help="Optional Python model file to open")
+    parser.add_argument("file", nargs="?", type=Path, help="Optional Python model or saved ModViz HTML file")
     return parser
 
 
@@ -356,7 +453,9 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     app = QApplication(sys.argv[:1])
     app.setApplicationName("ModViz Desktop")
+    app.setApplicationDisplayName("ModViz")
     app.setOrganizationName("ModViz")
+    app.setWindowIcon(application_icon())
     window = MainWindow()
     window.show()
     if args.file:

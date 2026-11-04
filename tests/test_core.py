@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from xml.etree import ElementTree
 
 from torch_flow_viz.model_loader import parse_json_object
 from torch_flow_viz.project_adapter import vessel_project_root
@@ -12,6 +13,8 @@ class CoreTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
         desktop = (root / "torch_flow_viz" / "desktop.py").read_text(encoding="utf-8")
+        desktop_state = (root / "torch_flow_viz" / "desktop_state.py").read_text(encoding="utf-8")
+        icon = root / "torch_flow_viz" / "assets" / "modviz.svg"
         self.assertIn('desktop = ["PySide6>=6.6"]', pyproject)
         self.assertIn('torch-flow-viz-desktop = "torch_flow_viz.desktop:main"', pyproject)
         self.assertIn("class MainWindow", desktop)
@@ -25,6 +28,22 @@ class CoreTests(unittest.TestCase):
         self.assertIn("render_supported_project", desktop)
         self.assertIn("def _trace_thread_finished", desktop)
         self.assertIn("except RuntimeError", desktop)
+        self.assertIn("class DesktopPage", desktop)
+        self.assertIn("Recent files", desktop_state)
+        self.assertIn("files/recent_models", desktop_state)
+        self.assertIn('QAction("Save…"', desktop)
+        self.assertNotIn('QAction("Save layout"', desktop)
+        self.assertNotIn('QAction("Save HTML', desktop)
+        self.assertIn('"exportLayoutState()"', desktop)
+        self.assertIn("embed_layout_html", desktop)
+        self.assertIn("def _open_html", desktop)
+        self.assertIn("*.py *.html", desktop)
+        self.assertIn("app.setWindowIcon(application_icon())", desktop)
+        self.assertIn("self.setWindowIcon(application_icon())", desktop)
+        self.assertIn('torch_flow_viz = ["assets/*.svg"]', pyproject)
+        self.assertTrue(icon.is_file())
+        root_element = ElementTree.parse(icon).getroot()
+        self.assertEqual(root_element.attrib["viewBox"], "0 0 512 512")
 
     def test_vessel_project_detection(self):
         legacy = Path("/Users/ifryed/Documents/ChatGPT/NextProj/vessel_gnn/model.py")
@@ -64,6 +83,9 @@ class CoreTests(unittest.TestCase):
         self.assertIn("compactLayout", html)
         self.assertIn("initialLayoutSnapshot", html)
         self.assertIn("restoreLayoutSnapshot", html)
+        self.assertIn("exportLayoutState", html)
+        self.assertIn("importLayoutState", html)
+        self.assertIn("view:{scale,tx,ty}", html)
         self.assertIn("resetLayout", html)
         self.assertIn("setTimeout(()=>compactLayout(false),0)", html)
         self.assertIn("document.querySelector('#compact').onclick=()=>compactLayout(true)", html)
@@ -87,6 +109,11 @@ class CoreTests(unittest.TestCase):
         self.assertIn('data-tooltip="Align horizontally"', html)
         self.assertIn("collapse.setAttribute('data-tooltip'", html)
         self.assertIn("stroke-width:1.2", html)
+        self.assertIn(".edge.hovered", html)
+        self.assertIn(".edge-hit", html)
+        self.assertIn("arrow-highlight", html)
+        self.assertIn("hit.onpointerenter", html)
+        self.assertIn("hit.onpointerleave", html)
         self.assertIn(".context-tools.dragging{opacity:.2", html)
         self.assertIn("classList.add('dragging')", html)
         self.assertIn("classList.remove('dragging')", html)
