@@ -20,3 +20,6 @@ torch-flow-viz-desktop = "torch_flow_viz.desktop:main"
 [tool.setuptools.packages.find]
 include = ["torch_flow_viz*"]
 
+[tool.setuptools.package-data]
+torch_flow_viz = ["assets/*.svg"]
+

@@ -3,7 +3,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 class Element {
   constructor(tag){this.tag=tag;this.attrs={};this.style={};this.children=[];this.hidden=false;this.textContent='';this.dataset={};this.clientWidth=1600;this.clientHeight=900;
-    this.classList={add:()=>{},remove:()=>{},toggle:()=>{}}}
+    this.classes=new Set();this.classList={add:c=>this.classes.add(c),remove:c=>this.classes.delete(c),contains:c=>this.classes.has(c),toggle:(c,on)=>on===undefined?(this.classes.has(c)?this.classes.delete(c):this.classes.add(c)):on?this.classes.add(c):this.classes.delete(c)}}
   setAttribute(k,v){this.attrs[k]=String(v)}
   getAttribute(k){return this.attrs[k]||''}
   append(e){this.children.push(e);e.parent=this}
@@ -57,6 +57,12 @@ if(process.argv[4]){
   fs.writeFileSync(process.argv[4],svg);
 }
 assert.deepEqual(initial.errors,[]);
+const persistence=vm.runInContext(`(()=>{const id=graph.nodes[0].id,expected={...pos[id]},expectedView={scale,tx,ty},saved=exportLayoutState();pos[id].x+=321;scale=.42;tx=777;ty=-123;const restored=importLayoutState(saved);return{restored,position:{...pos[id]},expected,view:{scale,tx,ty},expectedView}})()`,context);
+assert.equal(persistence.restored,true);
+assert.deepEqual(persistence.position,persistence.expected,'Saved node positions must restore');
+assert.deepEqual(persistence.view,persistence.expectedView,'Saved pan and zoom must restore');
+const hover=vm.runInContext(`(()=>{const r=edgeRecords.find(record=>record.points);r.hit.onpointerenter();const active=r.path.classList.contains('hovered')&&r.label.classList.contains('hovered')&&r.path.getAttribute('marker-end')==='url(#arrow-highlight)'&&r.hit.getAttribute('d')===r.path.getAttribute('d');r.hit.onpointerleave();return{active,cleared:!r.path.classList.contains('hovered')&&r.path.getAttribute('marker-end')===r.marker}})()`,context);
+assert.deepEqual(hover,{active:true,cleared:true},'Arrow hover must highlight and restore the complete route');
 vm.runInContext(`compactLayout(false)`,context);
 assert.deepEqual(inspect().errors,[]);
 assert.equal(JSON.stringify(inspect().boxes),JSON.stringify(initial.boxes),'Compact must be idempotent');
