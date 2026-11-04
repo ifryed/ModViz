@@ -1,10 +1,13 @@
 # ModViz
 
-Turn a PyTorch model into a **self-contained interactive HTML** network-flow diagram — ops, shapes, dtypes, parameter counts, and stage panels ready for papers or slides.
+Turn a PyTorch model into a **self-contained interactive HTML** network-flow
+diagram—operations, tensor shapes, data types, parameter counts, losses, and
+architecture stages ready for papers, slides, and documentation.
 
 ![Hybrid CNN + GNN overview](docs/images/hybrid-overview.png)
 
-Package name: `torch-flow-viz`. Open any generated HTML and click **Help** for the full in-diagram guide.
+Package name: `torch-flow-viz`. Open any generated HTML and click **Help** for
+the full in-diagram guide and project information.
 
 ## Features
 
@@ -17,6 +20,7 @@ Package name: `torch-flow-viz`. Open any generated HTML and click **Help** for t
 | **Loss view** | Toggle loss nodes, loss-only connections, and their stage panel on/off |
 | **Export** | PNG · SVG · PDF · draw.io (full figure, not just the viewport) |
 | **Undo** | Layout history with Ctrl/Cmd+Z |
+| **Desktop** | Open Python models or saved editable HTML diagrams in a standalone app |
 
 ![Layer details panel](docs/images/hybrid-details.png)
 
@@ -52,8 +56,8 @@ torch-flow-viz examples/hybrid_cnn_gnn.py --model HybridCNNGNN \
 
 ## Standalone Python desktop app
 
-The `python` branch includes a native desktop application with an embedded
-diagram editor. Install the desktop extra:
+ModViz includes a native desktop application with an embedded diagram editor.
+Install the desktop extra:
 
 ```bash
 pip install -e '.[desktop]'
@@ -115,3 +119,22 @@ Losses appear only if they are part of `forward`. When losses are present, use
 and stage panel. All export formats follow the current loss visibility state.
 Loading a model file **executes** its Python — use trusted local sources. Models
 with heavy data-dependent control flow may need an FX leaf wrap.
+
+## About and contributing
+
+ModViz is open source and built for readable, publication-style PyTorch model
+diagrams that remain interactive and editable. The project lives at
+[github.com/ifryed/ModViz](https://github.com/ifryed/ModViz).
+
+Contributions are welcome. You can
+[report a bug](https://github.com/ifryed/ModViz/issues), suggest a feature,
+improve documentation or examples, and open a pull request. When changing the
+renderer, run the automated tests and refresh the README images:
+
+```bash
+python -m unittest discover -s tests -v
+node tests/check_geometry.cjs examples/hybrid_cnn_gnn_visualization.html
+python tests/capture_readme_images.py
+```
+
+![Help and About ModViz](docs/images/hybrid-help.png)

@@ -15,7 +15,7 @@ import traceback
 
 try:
     from PySide6.QtCore import QObject, QSettings, QThread, QTimer, QUrl, QUrlQuery, Signal, Slot
-    from PySide6.QtGui import QAction, QIcon, QKeySequence
+    from PySide6.QtGui import QAction, QDesktopServices, QIcon, QKeySequence
     from PySide6.QtWidgets import (
         QApplication,
         QComboBox,
@@ -180,6 +180,17 @@ class TraceWorker(QObject):
             QThread.currentThread().quit()
 
 
+class ExternalLinkPage(QWebEnginePage):
+    """Send links opened in a new page to the user's default browser."""
+
+    def acceptNavigationRequest(self, url, navigation_type, is_main_frame):
+        if url.scheme() in {"http", "https"}:
+            QDesktopServices.openUrl(url)
+            self.deleteLater()
+            return False
+        return super().acceptNavigationRequest(url, navigation_type, is_main_frame)
+
+
 class DesktopPage(QWebEnginePage):
     """Handle private links from the desktop welcome screen."""
 
@@ -196,6 +207,9 @@ class DesktopPage(QWebEnginePage):
                 self.browseRequested.emit()
             return False
         return super().acceptNavigationRequest(url, navigation_type, is_main_frame)
+
+    def createWindow(self, window_type):
+        return ExternalLinkPage(self.profile(), self)
 
 
 class MainWindow(QMainWindow):
